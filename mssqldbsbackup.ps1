@@ -30,7 +30,7 @@ Function dbBackup($backupDir)
         $targetPath = $targetDirectory + "\" + $dbName + "_" + $timestamp + ".bak"
 
 		$startDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
-		"[$endDate] -- OK -- Starting backup of $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
+		"[$startDate] -- OK -- Starting backup of $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
         $smoBackup = New-Object ("Microsoft.SqlServer.Management.Smo.Backup")
         $smoBackup.Action = "Database"
         $smoBackup.BackupSetDescription = "Full Backup of " + $dbName
