@@ -1,4 +1,4 @@
-param(  
+param(
     $backupDirectory = "J:\backup_passthrough",
 	$shareDirectory = "\\10.5.220.10\SQLBACKUPSHARE",
 	$logDirectory = "C:\backup.log",
@@ -19,7 +19,7 @@ $global:errorStatus = 0
 
 Function dbBackup($backupDir)
 {
-    foreach ($database in $dbs | where { $_.IsSystemObject -eq $False })  
+    foreach ($database in $dbs | where { $_.IsSystemObject -eq $False })
     {
         $dbName = $database.Name
         #$dbName = "CONFIGMAN"
