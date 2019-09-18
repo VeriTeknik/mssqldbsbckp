@@ -11,6 +11,7 @@ param(
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum") | Out-Null
 
 $server = New-Object ("Microsoft.SqlServer.Management.Smo.Server")
+$server.ConnectionContext.StatementTimeout = 0
 $dbs = $server.Databases
 $global:targetDirectory = $null
 $global:BackupFile = $null
@@ -38,7 +39,7 @@ Function dbBackup($backupDir)
         $smoBackup.Database = $dbName
         $smoBackup.MediaDescription = "Disk"
         $smoBackup.Devices.AddDevice($targetPath, "File")
-		
+
 		$percent = [Microsoft.SqlServer.Management.Smo.PercentCompleteEventHandler] {
                    Write-Progress -id 1 -activity "Backing up database $dbName to $targetPath " -percentcomplete $_.Percent -status ([System.String]::Format("Progress: {0} %", $_.Percent))
         }
@@ -48,13 +49,13 @@ Function dbBackup($backupDir)
         {
             $smoBackup.SqlBackup($server)
 			$backupStatus = $?
-            Write-Progress -id 1 -activity "Backing up database $dbName to $targetPath " -percentcomplete 0 -status ([System.String]::Format("Progress: {0} %", 0))            
+            Write-Progress -id 1 -activity "Backing up database $dbName to $targetPath " -percentcomplete 0 -status ([System.String]::Format("Progress: {0} %", 0))
         }
         Catch
         {
             Write-Output $_.Exception.InnerException
-        } 
-		
+        }
+
         $endDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
 
         if ($backupStatus) {
