@@ -1,8 +1,8 @@
 param(
     $backupDirectory = "J:\backup_passthrough",
 	$shareDirectory = "\\10.5.220.10\SQLBACKUPSHARE",
-	$logDirectory = "C:\backup.log",
-	$nagiosCheckFile = "C:\nagios_sql_backup.log"
+	$logDirectory = "J:\backup_passthrough\logs\backup.log",
+	$nagiosCheckFile = "J:\backup_passthrough\logs\nagios_sql_backup.log"
 )
 
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SMO") | Out-Null
@@ -22,7 +22,7 @@ Function dbBackup($backupDir)
     foreach ($database in $dbs | where { $_.IsSystemObject -eq $False })
     {
         $dbName = $database.Name
-        #$dbName = "CONFIGMAN"
+        #$dbName = "DIAGNOSTICLOG"
 
         $timestamp = Get-Date -format yyyy-MM-dd
 		$global:targetDirectory = $backupDir + "\" + $timestamp
@@ -30,7 +30,7 @@ Function dbBackup($backupDir)
         $targetPath = $targetDirectory + "\" + $dbName + "_" + $timestamp + ".bak"
 
 		$startDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
-		"[$startDate] -- OK -- Starting backup of $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
+		"[$startDate] -- OK -- Started backup of $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
         $smoBackup = New-Object ("Microsoft.SqlServer.Management.Smo.Backup")
         $smoBackup.Action = "Database"
         $smoBackup.BackupSetDescription = "Full Backup of " + $dbName
@@ -38,12 +38,27 @@ Function dbBackup($backupDir)
         $smoBackup.Database = $dbName
         $smoBackup.MediaDescription = "Disk"
         $smoBackup.Devices.AddDevice($targetPath, "File")
-        $smoBackup.SqlBackup($server)
-        $backupStatus = $?
+		
+		$percent = [Microsoft.SqlServer.Management.Smo.PercentCompleteEventHandler] {
+                   Write-Progress -id 1 -activity "Backing up database $dbName to $targetPath " -percentcomplete $_.Percent -status ([System.String]::Format("Progress: {0} %", $_.Percent))
+        }
+        $smoBackup.add_PercentComplete($percent)
+        $smoBackup.add_Complete($complete)
+        Try
+        {
+            $smoBackup.SqlBackup($server)
+			$backupStatus = $?
+            Write-Progress -id 1 -activity "Backing up database $dbName to $targetPath " -percentcomplete 0 -status ([System.String]::Format("Progress: {0} %", 0))            
+        }
+        Catch
+        {
+            Write-Output $_.Exception.InnerException
+        } 
+		
         $endDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
 
         if ($backupStatus) {
-            "[$endDate] -- OK -- Backed up $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
+            "[$endDate] -- OK -- Finished backing up $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
         }
         else {
             "[$endDate] -- ERROR -- Failed to backup $dbName on $server to $targetPath" | Tee-Object -FilePath $global:LogDir -Append
@@ -59,7 +74,7 @@ Function addTo7z($backupDir)
 	$source = $backupDir
 	$global:BackupFile = $backupDir + ".7z"
 	$startDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
-	"[$startDate] -- OK -- Starting 7z archiving of $backupDir to $global:BackupFile" | Tee-Object -FilePath $global:LogDir -Append
+	"[$startDate] -- OK -- Started 7z archiving of $backupDir to $global:BackupFile" | Tee-Object -FilePath $global:LogDir -Append
 	sz a -t7z -mmt16 $global:BackupFile $source
 	$status = $?
 	$endDate = Get-Date -format yyyy-MM-dd_HH:mm:ss
